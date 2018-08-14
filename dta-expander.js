@@ -35,7 +35,7 @@ function make_red(txt){
 
 function multiplyXML(source, target, multiplier = 100){
     perf.start()
-    const saxStream = sax.createStream(true, {})
+    const saxStream = sax.createStream(true, {trim : true})
     const writeStream = fs.createWriteStream(target);
     
     let recordCdtTrfTxInf = false
@@ -113,25 +113,27 @@ function multiplyXML(source, target, multiplier = 100){
         writeStream.write(`</${name}>`)
     })
     saxStream.on('text', function(text){
+        const saferText = text.replace('&','')
         if(recordCdtTrfTxInf){
-            CdtTrfTxInf += `${text}`
+            CdtTrfTxInf += `${saferText}`
             return
         }
         if(recordCtrlSum){
-            CtrlSum += `${parseFloat(text)*multiplier}` 
+            CtrlSum += `${parseFloat(saferText)*multiplier}` 
             return
         }
         if(recordNbOfTxs){
-            NbOfTxs += `${parseFloat(text)*multiplier}` 
+            NbOfTxs += `${parseFloat(saferText)*multiplier}` 
             return
         }
         if(recordRest) {
 
-            rest += text.trim()
+            rest += saferText.trim()
             return
         }
-        writeStream.write(`${text}`)
+        writeStream.write(`${saferText}`)
     })
+
     saxStream.on('processinginstruction', function(node){
         writeStream.write(`<?${node.name} ${node.body}?>`)
     })
