@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node dta-expander.js test.xml target.xml",
-    "build": "nexe dta-expander.js"
+    "build": "nexe dta-expander.js "
   },
   "author": "",
   "license": "ISC",

@@ -82,10 +82,15 @@ function multiplyXML(source, target, multiplier = 100){
         if(name === 'CdtTrfTxInf'){
             recordCdtTrfTxInf = false
             CdtTrfTxInf += `</${name}>\n`
-            
-            for(let i = 0;i < multiplier; i++){
-                writeStream.write(`${CdtTrfTxInf}`)
+
+            function writeCB(index) {
+                if (index >= multiplier) {
+                    writeStream.end()
+                    return;
+                }
+                writeStream.write(CdtTrfTxInf, writeCB.bind(null, index + 1));
             }
+            writeStream.write(CdtTrfTxInf, writeCB.bind(null, 0));
             return
         }
         if(name === 'CtrlSum'){
@@ -130,7 +135,7 @@ function multiplyXML(source, target, multiplier = 100){
     })
 
     saxStream.on('end', () => {
-        writeStream.close()
+       // writeStream.close()
     })
     writeStream.on('finish', () => {
         const result = perf.stop()
