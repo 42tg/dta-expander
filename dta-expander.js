@@ -1,37 +1,42 @@
 'use strict';
-
-const program = require('commander')
-var colors = require('colors');
-const fs = require('fs')
+const fs        = require('fs')
+const sax       = require('sax')
+const program   = require('commander')
+const colors    = require('colors');
+const perf      = require('execution-time')();
 program
   .version('0.0.1')
   .arguments('<source> <target>')
-  .option('-m, --multiplier','Multiply Payments in XML file with this number, default 100')
+  .option('-m, --multiplier <n>','multiply Payments in XML file with this number, default 100', parseInt)
   .action((source, target, options) => {
     try{
         fs.lstatSync(source).isFile()
-        multiplyXML(source, target, options)
+        multiplyXML(source, target, options.multiplier)
     } catch (e) {
         if(e.code === "ENOENT")
         {
-            console.log("Please provide an valid File to parse!")
+            console.log("Please provide an valid File to parse!".red)
             return
         }
-        console.log("Something went wrong, sorry " + e);
+        console.log("Something went wrong, sorry " + e .red);
     }
   })
   .parse(process.argv);
 
-  if(!process.argv.slice(2).length){
+if(!process.argv.slice(2).length){
     program.outputHelp(make_red)
-  }
+}
 
-  function make_red(txt){
-      return colors.red(txt)
-  }
-function multiplyXML(source, target, {multiply = 100}){
-    const saxStream = require("sax").createStream(true, {})
-    const writeStream = require('fs').createWriteStream(target);
+function make_red(txt){
+    txt += 'For more informations or a change request, create an issue here: \n'.yellow
+    txt += 'https://github.com/42tg/dta-expander'.green
+    return colors.red(txt)
+}
+
+function multiplyXML(source, target, multiplier = 100){
+    perf.start()
+    const saxStream = sax.createStream(true, {})
+    const writeStream = fs.createWriteStream(target);
     
     let recordCdtTrfTxInf = false
     let recordCtrlSum = false
@@ -78,7 +83,7 @@ function multiplyXML(source, target, {multiply = 100}){
             recordCdtTrfTxInf = false
             CdtTrfTxInf += `</${name}>\n`
             
-            for(let i = 0;i < multiply; i++){
+            for(let i = 0;i < multiplier; i++){
                 writeStream.write(`${CdtTrfTxInf}`)
             }
             return
@@ -107,11 +112,11 @@ function multiplyXML(source, target, {multiply = 100}){
             return
         }
         if(recordCtrlSum){
-            CtrlSum += `${parseFloat(text)*multiply}` 
+            CtrlSum += `${parseFloat(text)*multiplier}` 
             return
         }
         if(recordNbOfTxs){
-            NbOfTxs += `${parseFloat(text)*multiply}` 
+            NbOfTxs += `${parseFloat(text)*multiplier}` 
             return
         }
         writeStream.write(`${text}`)
@@ -125,10 +130,13 @@ function multiplyXML(source, target, {multiply = 100}){
     })
 
     saxStream.on('end', () => {
-        //console.log(CdtTrfTxInf)
+        writeStream.close()
+    })
+    writeStream.on('finish', () => {
+        const result = perf.stop()
+        console.log(`Finished in ${result.time.toFixed(2)}ms!`.green)
     })
 
-    require('fs').createReadStream(source)
+    fs.createReadStream(source)
     .pipe(saxStream)
-
 }
