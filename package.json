@@ -1,14 +1,14 @@
 {
   "name": "dta-expander",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "dta-expander.js",
   "scripts": {
     "start": "node dta-expander.js test.xml target.xml",
     "build": "nexe dta-expander.js "
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "colors": "^1.3.1",
     "commander": "^2.17.1",
