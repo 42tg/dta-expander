@@ -41,14 +41,17 @@ function multiplyXML(source, target, multiplier = 100){
     let recordCdtTrfTxInf = false
     let recordCtrlSum = false
     let recordNbOfTxs = false
-    let CdtTrfTxInf
+    let recordRest = false
+    let CdtTrfTxInf = ''
     let CtrlSum 
     let NbOfTxs
+    let rest = ''
 
     saxStream.on('opentag', function (node) {
         if(node.name === 'CdtTrfTxInf'){
             recordCdtTrfTxInf = true
-            CdtTrfTxInf = `<${node.name}>`
+            recordRest = false
+            CdtTrfTxInf += `<${node.name}>`
             return
         }
         if(node.name === 'CtrlSum'){
@@ -61,14 +64,6 @@ function multiplyXML(source, target, multiplier = 100){
             NbOfTxs = `<${node.name}>`
             return
         }
-        if(recordCdtTrfTxInf) {
-            CdtTrfTxInf += `<${node.name}`
-            Object.keys(node.attributes).map((key) => {
-                CdtTrfTxInf += ` ${key}="${node.attributes[key]}"`
-            })
-            CdtTrfTxInf += `>`
-            return
-        }
 
         if(!node.name) return
         let string = `<${node.name}`
@@ -76,21 +71,23 @@ function multiplyXML(source, target, multiplier = 100){
             string += ` ${key}="${node.attributes[key]}"`
         })
         string += `>`
+
+        if(recordCdtTrfTxInf) {
+            CdtTrfTxInf += string
+            return
+        }
+        if(recordRest){
+            rest += string
+            return
+        }
         writeStream.write(string)
     })
+
     saxStream.on('closetag', function (name) {
         if(name === 'CdtTrfTxInf'){
             recordCdtTrfTxInf = false
+            recordRest = true;
             CdtTrfTxInf += `</${name}>\n`
-
-            function writeCB(index) {
-                if (index >= multiplier) {
-                    writeStream.end()
-                    return;
-                }
-                writeStream.write(CdtTrfTxInf, writeCB.bind(null, index + 1));
-            }
-            writeStream.write(CdtTrfTxInf, writeCB.bind(null, 0));
             return
         }
         if(name === 'CtrlSum'){
@@ -109,6 +106,10 @@ function multiplyXML(source, target, multiplier = 100){
             CdtTrfTxInf += `</${name}>`
             return
         }
+        if(recordRest) {
+            rest += `</${name}>`
+            return
+        }
         writeStream.write(`</${name}>`)
     })
     saxStream.on('text', function(text){
@@ -124,24 +125,35 @@ function multiplyXML(source, target, multiplier = 100){
             NbOfTxs += `${parseFloat(text)*multiplier}` 
             return
         }
+        if(recordRest) {
+
+            rest += text.trim()
+            return
+        }
         writeStream.write(`${text}`)
     })
     saxStream.on('processinginstruction', function(node){
-    writeStream.write(`<?${node.name} ${node.body}?>`)
-    })
-    let count = 0;
-    saxStream.on('ready', () => {
-    
+        writeStream.write(`<?${node.name} ${node.body}?>`)
     })
 
+    function writeRest(){
+        writeStream.write(rest, () => writeStream.end())
+    }
     saxStream.on('end', () => {
-       // writeStream.close()
+        function writeCB(index) {
+            if (index >= multiplier) {
+                writeRest()
+                return;
+            }
+            writeStream.write(CdtTrfTxInf, writeCB.bind(null, index + 1));
+        }
+        writeStream.write(CdtTrfTxInf, writeCB.bind(null, 1));
     })
+
     writeStream.on('finish', () => {
         const result = perf.stop()
         console.log(`Finished in ${result.time.toFixed(2)}ms!`.green)
     })
 
-    fs.createReadStream(source)
-    .pipe(saxStream)
+    const readStream = fs.createReadStream(source).pipe(saxStream)
 }
